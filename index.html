@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MST Builder – Stage 6 Networks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #020617 0, #020617 60%);
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .game-container {
+      background: rgba(15, 23, 42, 0.98);
+      border-radius: 18px;
+      max-width: 1100px;
+      width: 100%;
+      padding: 22px 24px 16px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .title-block h1 {
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.03em;
+    }
+
+    .pill {
+      font-size: 0.8rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #0ea5e9, #22c55e);
+      color: #0f172a;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #cbd5f5;
+      margin-top: 4px;
+      max-width: 540px;
+    }
+
+    .meta-block {
+      text-align: right;
+      font-size: 0.8rem;
+    }
+
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+
+    .meta-value {
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .meta-value span {
+      display: block;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      font-weight: 400;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .meta-block {
+        text-align: left;
+      }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, #020617, #020617);
+      border-radius: 16px;
+      padding: 12px 13px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #e5e7eb;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+    }
+
+    .graph-wrapper {
+      background: radial-gradient(circle at top, #020617, #020617);
+      border-radius: 14px;
+      border: 1px solid rgba(75, 85, 99, 0.9);
+      padding: 8px;
+    }
+
+    svg {
+      width: 100%;
+      height: 360px;
+      display: block;
+    }
+
+    .edge-line {
+      stroke: #64748b;
+      stroke-width: 3;
+      cursor: pointer;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s;
+    }
+
+    .edge-line:hover {
+      stroke-width: 4;
+      stroke: #e5e7eb;
+    }
+
+    .edge-line.selected {
+      stroke: #22c55e;
+      stroke-width: 4;
+    }
+
+    .edge-line.cycle {
+      stroke: #f97316;
+      stroke-width: 4;
+    }
+
+    .edge-line.solution {
+      stroke: #facc15;
+      stroke-dasharray: 6 3;
+    }
+
+    .node-circle {
+      fill: #020617;
+      stroke: #e5e7eb;
+      stroke-width: 2;
+    }
+
+    .node-label {
+      fill: #e5e7eb;
+      font-size: 14px;
+      font-weight: 600;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .weight-label {
+      fill: #e5e7eb;
+      font-size: 12px;
+      font-weight: 500;
+      paint-order: stroke;
+      stroke: #020617;
+      stroke-width: 3;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .info-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #cbd5f5;
+    }
+
+    .tag-pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 0.75rem;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 0.8rem;
+    }
+
+    .stat-box {
+      border-radius: 10px;
+      padding: 6px 7px;
+      background: radial-gradient(circle at top left, #0f172a, #020617);
+      border: 1px solid rgba(75, 85, 99, 0.8);
+    }
+
+    .stat-label {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .stat-value.good {
+      color: #4ade80;
+    }
+
+    .stat-value.bad {
+      color: #fb7185;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: radial-gradient(circle at top, #020617, #020617);
+      color: #e5e7eb;
+      transition: transform 0.08s ease, box-shadow 0.08s ease,
+        border-color 0.08s ease, background 0.08s ease;
+    }
+
+    .btn.primary {
+      background: radial-gradient(circle at top, #22c55e, #16a34a);
+      color: #022c22;
+      font-weight: 600;
+      border-color: #4ade80;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-0.5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+      border-color: #0ea5e9;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    /* Right panel */
+    .right-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .summary-card {
+      background: radial-gradient(circle at top left, #020617, #020617);
+      border-radius: 14px;
+      padding: 10px 11px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.84rem;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .summary-label {
+      color: #9ca3af;
+      font-size: 0.78rem;
+    }
+
+    .summary-value {
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .summary-value.good {
+      color: #4ade80;
+    }
+
+    .summary-value.bad {
+      color: #fb7185;
+    }
+
+    .hint-text {
+      margin-top: 5px;
+      font-style: italic;
+      color: #bfdbfe;
+    }
+
+    .log-card {
+      background: radial-gradient(circle at top, #020617, #020617);
+      border-radius: 14px;
+      padding: 9px 10px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.8rem;
+      overflow-y: auto;
+      max-height: 270px;
+    }
+
+    .log-card h3 {
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+
+    .log-tag {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      margin-right: 6px;
+      color: #9ca3af;
+    }
+
+    .footer-row {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer-row strong {
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="title-block">
+        <h1>
+          MST Builder
+          <span class="pill">Stage 6 Networks</span>
+        </h1>
+        <p class="subtitle">
+          Click on edges to build a
+          <strong>Minimal Spanning Tree</strong>. Avoid cycles. Use as few
+          mistakes as possible. Then compare your tree to the optimal MST.
+        </p>
+      </div>
+      <div class="meta-block">
+        <div class="meta-label">Topic</div>
+        <div class="meta-value">
+          Minimal Spanning Trees
+          <span>Great for revising Prim and Kruskal by inspection.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- LEFT: Graph + controls -->
+      <div class="card">
+        <h2>
+          Network
+          <span class="badge" id="graphName">–</span>
+        </h2>
+
+        <div class="graph-wrapper">
+          <svg id="networkSvg" viewBox="0 0 600 360"></svg>
+        </div>
+
+        <div class="info-row">
+          <span class="tag-pill" id="nodeCountTag">0 vertices</span>
+          <span class="tag-pill" id="edgeCountTag">0 edges</span>
+          <span class="tag-pill" id="targetTag">Need 0 edges for a tree</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Selected edges</div>
+            <div class="stat-value" id="selectedCount">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Total weight</div>
+            <div class="stat-value" id="totalWeight">$0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Mistakes</div>
+            <div class="stat-value" id="mistakeCount">0</div>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <button class="btn primary" id="newGraphBtn">New random network</button>
+          <button class="btn" id="resetGraphBtn">Reset this network</button>
+          <button class="btn" id="showSolutionBtn">Show MST solution</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Summary + log -->
+      <div class="right-panel">
+        <div class="summary-card">
+          <div class="summary-row">
+            <span class="summary-label">Your total weight:</span>
+            <span class="summary-value" id="summaryYourWeight">$0</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">True MST weight:</span>
+            <span class="summary-value" id="summaryMstWeight">?</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Tree status:</span>
+            <span class="summary-value" id="summaryTreeStatus">–</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">MST check:</span>
+            <span class="summary-value" id="summaryMstCheck">–</span>
+          </div>
+          <div class="hint-text" id="hintText">
+            Click an edge to add it. You can’t choose edges that form a cycle.
+            Aim to connect all vertices with minimum total weight.
+          </div>
+        </div>
+
+        <div class="log-card" id="logBox">
+          <h3>Move log</h3>
+          <div class="log-entry">
+            Click edges in order of increasing weight (like Kruskal), but do
+            NOT create cycles.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <div>
+        Teaching idea: after a round, ask students to
+        <strong>explain why any heavier edge was “blocked” by a cycle</strong>.
+      </div>
+      <div>
+        Challenge: try to beat the MST on <strong>mistakes = 0</strong> for all networks.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------
+    // GRAPH DATA
+    // -------------------------------
+    const graphs = [
+      {
+        name: "Network A",
+        nodes: [
+          { id: "A", x: 80, y: 60 },
+          { id: "B", x: 250, y: 50 },
+          { id: "C", x: 450, y: 80 },
+          { id: "D", x: 130, y: 230 },
+          { id: "E", x: 320, y: 230 },
+          { id: "F", x: 520, y: 210 },
+        ],
+        edges: [
+          { id: "A-B", from: "A", to: "B", weight: 4 },
+          { id: "A-D", from: "A", to: "D", weight: 3 },
+          { id: "B-C", from: "B", to: "C", weight: 5 },
+          { id: "B-D", from: "B", to: "D", weight: 6 },
+          { id: "B-E", from: "B", to: "E", weight: 7 },
+          { id: "C-E", from: "C", to: "E", weight: 4 },
+          { id: "C-F", from: "C", to: "F", weight: 6 },
+          { id: "D-E", from: "D", to: "E", weight: 5 },
+          { id: "E-F", from: "E", to: "F", weight: 2 },
+        ],
+      },
+      {
+        name: "Network B",
+        nodes: [
+          { id: "A", x: 90, y: 80 },
+          { id: "B", x: 260, y: 50 },
+          { id: "C", x: 430, y: 80 },
+          { id: "D", x: 90, y: 260 },
+          { id: "E", x: 260, y: 300 },
+          { id: "F", x: 430, y: 260 },
+        ],
+        edges: [
+          { id: "A-B", from: "A", to: "B", weight: 2 },
+          { id: "B-C", from: "B", to: "C", weight: 8 },
+          { id: "A-D", from: "A", to: "D", weight: 6 },
+          { id: "B-D", from: "B", to: "D", weight: 3 },
+          { id: "B-E", from: "B", to: "E", weight: 5 },
+          { id: "C-E", from: "C", to: "E", weight: 4 },
+          { id: "D-E", from: "D", to: "E", weight: 7 },
+          { id: "D-F", from: "D", to: "F", weight: 9 },
+          { id: "E-F", from: "E", to: "F", weight: 3 },
+        ],
+      },
+      {
+        name: "Network C",
+        nodes: [
+          { id: "A", x: 120, y: 70 },
+          { id: "B", x: 300, y: 40 },
+          { id: "C", x: 480, y: 90 },
+          { id: "D", x: 80, y: 250 },
+          { id: "E", x: 260, y: 260 },
+          { id: "F", x: 460, y: 250 },
+        ],
+        edges: [
+          { id: "A-B", from: "A", to: "B", weight: 7 },
+          { id: "A-D", from: "A", to: "D", weight: 3 },
+          { id: "A-E", from: "A", to: "E", weight: 6 },
+          { id: "B-C", from: "B", to: "C", weight: 4 },
+          { id: "B-E", from: "B", to: "E", weight: 5 },
+          { id: "C-E", from: "C", to: "E", weight: 9 },
+          { id: "C-F", from: "C", to: "F", weight: 2 },
+          { id: "D-E", from: "D", to: "E", weight: 4 },
+          { id: "E-F", from: "E", to: "F", weight: 5 },
+        ],
+      },
+    ];
+
+    // -------------------------------
+    // STATE
+    // -------------------------------
+    let currentGraph = null;
+    let mstInfo = null;
+    let selectedEdges = new Set();
+    let selectedWeight = 0;
+    let mistakes = 0;
+    let ufClickParent = {};
+    let ufClickRank = {};
+    let finished = false;
+
+    const svg = document.getElementById("networkSvg");
+    const logBox = document.getElementById("logBox");
+
+    const graphNameEl = document.getElementById("graphName");
+    const nodeCountTag = document.getElementById("nodeCountTag");
+    const edgeCountTag = document.getElementById("edgeCountTag");
+    const targetTag = document.getElementById("targetTag");
+
+    const selectedCountEl = document.getElementById("selectedCount");
+    const totalWeightEl = document.getElementById("totalWeight");
+    const mistakeCountEl = document.getElementById("mistakeCount");
+
+    const summaryYourWeight = document.getElementById("summaryYourWeight");
+    const summaryMstWeight = document.getElementById("summaryMstWeight");
+    const summaryTreeStatus = document.getElementById("summaryTreeStatus");
+    const summaryMstCheck = document.getElementById("summaryMstCheck");
+    const hintText = document.getElementById("hintText");
+
+    const newGraphBtn = document.getElementById("newGraphBtn");
+    const resetGraphBtn = document.getElementById("resetGraphBtn");
+    const showSolutionBtn = document.getElementById("showSolutionBtn");
+
+    // -------------------------------
+    // UNION-FIND (DISJOINT SET)
+    // -------------------------------
+    function ufInit(nodes, parentObj, rankObj) {
+      nodes.forEach((n) => {
+        parentObj[n.id] = n.id;
+        rankObj[n.id] = 0;
+      });
+    }
+
+    function ufFind(parentObj, x) {
+      if (parentObj[x] !== x) {
+        parentObj[x] = ufFind(parentObj, parentObj[x]);
+      }
+      return parentObj[x];
+    }
+
+    function ufUnion(parentObj, rankObj, a, b) {
+      let rootA = ufFind(parentObj, a);
+      let rootB = ufFind(parentObj, b);
+      if (rootA === rootB) return false;
+      if (rankObj[rootA] < rankObj[rootB]) {
+        parentObj[rootA] = rootB;
+      } else if (rankObj[rootA] > rankObj[rootB]) {
+        parentObj[rootB] = rootA;
+      } else {
+        parentObj[rootB] = rootA;
+        rankObj[rootA]++;
+      }
+      return true;
+    }
+
+    // -------------------------------
+    // MST COMPUTATION (KRUSKAL)
+    // -------------------------------
+    function computeMST(graph) {
+      const parent = {};
+      const rank = {};
+      ufInit(graph.nodes, parent, rank);
+
+      const sortedEdges = [...graph.edges].sort(
+        (a, b) => a.weight - b.weight
+      );
+      const mstEdgeIds = new Set();
+      let mstWeight = 0;
+
+      sortedEdges.forEach((e) => {
+        if (ufUnion(parent, rank, e.from, e.to)) {
+          mstEdgeIds.add(e.id);
+          mstWeight += e.weight;
+        }
+      });
+
+      return { edgeIds: mstEdgeIds, weight: mstWeight };
+    }
+
+    // -------------------------------
+    // DRAW GRAPH
+    // -------------------------------
+    function loadRandomGraph() {
+      const index = Math.floor(Math.random() * graphs.length);
+      loadGraph(graphs[index]);
+    }
+
+    function loadGraph(graph) {
+      currentGraph = graph;
+      mstInfo = computeMST(graph);
+      selectedEdges = new Set();
+      selectedWeight = 0;
+      mistakes = 0;
+      finished = false;
+
+      ufClickParent = {};
+      ufClickRank = {};
+      ufInit(graph.nodes, ufClickParent, ufClickRank);
+
+      svg.innerHTML = "";
+
+      // Build lookup for nodes
+      const nodeById = {};
+      graph.nodes.forEach((n) => (nodeById[n.id] = n));
+
+      // Draw edges first
+      graph.edges.forEach((edge) => {
+        const fromNode = nodeById[edge.from];
+        const toNode = nodeById[edge.to];
+
+        const line = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line"
+        );
+        line.setAttribute("x1", fromNode.x);
+        line.setAttribute("y1", fromNode.y);
+        line.setAttribute("x2", toNode.x);
+        line.setAttribute("y2", toNode.y);
+        line.setAttribute("data-edge-id", edge.id);
+        line.classList.add("edge-line");
+        line.addEventListener("click", () =>
+          handleEdgeClick(edge.id)
+        );
+        svg.appendChild(line);
+
+        // Weight label position: midpoint slightly offset
+        const midX = (fromNode.x + toNode.x) / 2;
+        const midY = (fromNode.y + toNode.y) / 2;
+        const text = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "text"
+        );
+        text.setAttribute("x", midX);
+        text.setAttribute("y", midY - 8);
+        text.classList.add("weight-label");
+        text.textContent = edge.weight;
+        svg.appendChild(text);
+      });
+
+      // Draw nodes
+      graph.nodes.forEach((node) => {
+        const circle = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle"
+        );
+        circle.setAttribute("cx", node.x);
+        circle.setAttribute("cy", node.y);
+        circle.setAttribute("r", 16);
+        circle.classList.add("node-circle");
+        svg.appendChild(circle);
+
+        const label = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "text"
+        );
+        label.setAttribute("x", node.x);
+        label.setAttribute("y", node.y);
+        label.classList.add("node-label");
+        label.textContent = node.id;
+        svg.appendChild(label);
+      });
+
+      // Update info text
+      graphNameEl.textContent = graph.name;
+      nodeCountTag.textContent = `${graph.nodes.length} vertices`;
+      edgeCountTag.textContent = `${graph.edges.length} edges`;
+      targetTag.textContent = `Need ${graph.nodes.length - 1} edges for a spanning tree`;
+
+      // Reset summary + stats
+      selectedCountEl.textContent = "0";
+      totalWeightEl.textContent = "0";
+      mistakeCountEl.textContent = "0";
+
+      summaryYourWeight.textContent = "$0";
+      summaryMstWeight.textContent = "?";
+      summaryTreeStatus.textContent = "Not finished";
+      summaryTreeStatus.className = "summary-value";
+      summaryMstCheck.textContent = "Waiting…";
+      summaryMstCheck.className = "summary-value";
+      hintText.textContent =
+        "Click edges in increasing weight order. If an edge closes a loop, it will be blocked.";
+
+      // Clear log except header
+      logBox.innerHTML =
+        "<h3>Move log</h3><div class='log-entry'>New network loaded. Start building your spanning tree.</div>";
+    }
+
+    // -------------------------------
+    // EDGE CLICK HANDLER
+    // -------------------------------
+    function handleEdgeClick(edgeId) {
+      if (!currentGraph || finished) return;
+
+      if (selectedEdges.has(edgeId)) {
+        addLog(
+          "Info",
+          `Edge ${edgeId} already selected. MST edges cannot be removed in this version.`
+        );
+        return;
+      }
+
+      const edge = currentGraph.edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      // Check for cycle
+      const rootFrom = ufFind(ufClickParent, edge.from);
+      const rootTo = ufFind(ufClickParent, edge.to);
+      if (rootFrom === rootTo) {
+        mistakes++;
+        mistakeCountEl.textContent = mistakes.toString();
+        flashEdge(edgeId, "cycle");
+        addLog(
+          "Cycle",
+          `Edge ${edgeId} would create a cycle, so it cannot be part of a spanning tree.`
+        );
+        updateSummary();
+        return;
+      }
+
+      // Accept edge
+      ufUnion(ufClickParent, ufClickRank, edge.from, edge.to);
+      selectedEdges.add(edgeId);
+      selectedWeight += edge.weight;
+      selectedCountEl.textContent = `${selectedEdges.size}`;
+      totalWeightEl.textContent = `${selectedWeight}`;
+      colorEdge(edgeId, "selected");
+
+      addLog(
+        "Edge",
+        `Added edge ${edgeId} with weight ${edge.weight}. Total weight is now ${selectedWeight}.`
+      );
+
+      updateSummary();
+
+      // Check if we have a full spanning tree
+      const neededEdges = currentGraph.nodes.length - 1;
+      if (selectedEdges.size === neededEdges) {
+        finishAttempt();
+      }
+    }
+
+    function colorEdge(edgeId, styleClass) {
+      const lines = svg.querySelectorAll(".edge-line");
+      lines.forEach((line) => {
+        if (line.getAttribute("data-edge-id") === edgeId) {
+          line.classList.remove("cycle", "solution");
+          if (styleClass === "selected") {
+            line.classList.add("selected");
+          } else if (styleClass === "solution") {
+            line.classList.add("solution");
+          }
+        }
+      });
+    }
+
+    function flashEdge(edgeId, reasonClass) {
+      const lines = svg.querySelectorAll(".edge-line");
+      lines.forEach((line) => {
+        if (line.getAttribute("data-edge-id") === edgeId) {
+          line.classList.add(reasonClass);
+          setTimeout(() => {
+            line.classList.remove(reasonClass);
+          }, 450);
+        }
+      });
+    }
+
+    // -------------------------------
+    // SUMMARY + MST CHECK
+    // -------------------------------
+    function isTree() {
+      if (!currentGraph) return false;
+      const neededEdges = currentGraph.nodes.length - 1;
+      if (selectedEdges.size !== neededEdges) return false;
+
+      // Check connectivity using union-find
+      const parent = {};
+      const rank = {};
+      ufInit(currentGraph.nodes, parent, rank);
+
+      selectedEdges.forEach((id) => {
+        const e = currentGraph.edges.find((x) => x.id === id);
+        if (e) ufUnion(parent, rank, e.from, e.to);
+      });
+
+      const roots = new Set(
+        currentGraph.nodes.map((n) => ufFind(parent, n.id))
+      );
+      return roots.size === 1;
+    }
+
+    function isExactMST() {
+      if (!mstInfo || !currentGraph) return false;
+      if (selectedEdges.size !== mstInfo.edgeIds.size) return false;
+      let allMatch = true;
+      selectedEdges.forEach((id) => {
+        if (!mstInfo.edgeIds.has(id)) allMatch = false;
+      });
+      return allMatch;
+    }
+
+    function updateSummary() {
+      summaryYourWeight.textContent = `$${selectedWeight}`;
+      summaryMstWeight.textContent =
+        finished || selectedEdges.size === currentGraph.nodes.length - 1
+          ? `$${mstInfo.weight}`
+          : "?";
+
+      if (!currentGraph) return;
+
+      if (selectedEdges.size === 0) {
+        summaryTreeStatus.textContent = "Not started";
+        summaryTreeStatus.className = "summary-value";
+        summaryMstCheck.textContent = "Waiting…";
+        summaryMstCheck.className = "summary-value";
+      } else if (!isTree()) {
+        summaryTreeStatus.textContent = "Not a full tree yet";
+        summaryTreeStatus.className = "summary-value";
+        summaryMstCheck.textContent = "Need more edges (without cycles).";
+        summaryMstCheck.className = "summary-value";
+      } else {
+        summaryTreeStatus.textContent = "Tree formed";
+        summaryTreeStatus.className = "summary-value good";
+        if (selectedWeight === mstInfo.weight && isExactMST()) {
+          summaryMstCheck.textContent = "This is an MST ✔";
+          summaryMstCheck.className = "summary-value good";
+        } else if (selectedWeight > mstInfo.weight) {
+          summaryMstCheck.textContent =
+            "Connected, but heavier than MST. Can you spot the extra weight?";
+          summaryMstCheck.className = "summary-value bad";
+        } else {
+          summaryMstCheck.textContent =
+            "Connected, but edge choices differ from the Kruskal MST.";
+          summaryMstCheck.className = "summary-value";
+        }
+      }
+    }
+
+    function finishAttempt() {
+      finished = true;
+      const correct = isExactMST();
+      if (correct) {
+        addLog(
+          "MST",
+          `You built a minimal spanning tree! Total weight = ${selectedWeight}, MST weight = ${mstInfo.weight}.`
+        );
+        hintText.textContent =
+          "Nice! Explain why each edge is needed, and why any heavier edges were rejected.";
+      } else {
+        addLog(
+          "Tree",
+          `You built a spanning tree (no cycles, all vertices connected), but not the MST. Your weight: ${selectedWeight}, MST weight: ${mstInfo.weight}.`
+        );
+        hintText.textContent =
+          "You have a valid tree, but not minimal. Which edge(s) could be swapped for a cheaper alternative?";
+      }
+      updateSummary();
+    }
+
+    // -------------------------------
+    // LOGGING
+    // -------------------------------
+    function addLog(tag, text) {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.innerHTML =
+        `<span class="log-tag">${tag}</span>` + text;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // -------------------------------
+    // BUTTON HANDLERS
+    // -------------------------------
+    newGraphBtn.addEventListener("click", () => {
+      loadRandomGraph();
+    });
+
+    resetGraphBtn.addEventListener("click", () => {
+      if (!currentGraph) return;
+      loadGraph(currentGraph);
+    });
+
+    showSolutionBtn.addEventListener("click", () => {
+      if (!currentGraph || !mstInfo) return;
+
+      // Clear previous solution styling
+      const lines = svg.querySelectorAll(".edge-line");
+      lines.forEach((line) => {
+        line.classList.remove("solution");
+      });
+
+      mstInfo.edgeIds.forEach((id) => {
+        const line = Array.from(lines).find(
+          (l) => l.getAttribute("data-edge-id") === id
+        );
+        if (line) {
+          line.classList.add("solution");
+        }
+      });
+
+      summaryMstWeight.textContent = `$${mstInfo.weight}`;
+      addLog(
+        "Solution",
+        "Yellow dashed edges show one possible minimal spanning tree (via Kruskal)."
+      );
+      hintText.textContent =
+        "Compare your selected edges to the solution MST. Which choices made the difference?";
+      finished = true;
+      updateSummary();
+    });
+
+    // -------------------------------
+    // START
+    // -------------------------------
+    loadRandomGraph();
+  </script>
+</body>
+</html>
